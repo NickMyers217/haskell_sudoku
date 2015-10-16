@@ -72,7 +72,7 @@ isSolved (Sudoku rs) = and rowsSolved
 
 -- Take a Sudoku and make a list of all its Blocks
 blocks :: Sudoku -> [Block]
-blocks (Sudoku rows) = rows ++ (transpose rows) ++ (map (\f -> f rows) blockFuncs)
+blocks (Sudoku rows) = rows ++ transpose rows ++ map (\f -> f rows) blockFuncs
   where cols       = transpose rows
         topOrLeft  = take 3
         middle     = take 3 . drop 3
