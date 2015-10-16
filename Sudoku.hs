@@ -10,6 +10,8 @@ import Test.QuickCheck
 data Sudoku = Sudoku [[Maybe Int]] deriving (Show, Eq)
 -- A block represents 9 cells (either a row, column, or 3 x 3 box)
 type Block = [Maybe Int]
+-- An x y coordinate
+type Pos = (Int, Int)
 
 
 -- An unsolved example Sudoku
@@ -36,19 +38,6 @@ rows :: Sudoku -> [[Maybe Int]]
 rows (Sudoku rs) = rs
 
 
--- Check to see if a grid of numbers is actually a Sudoku
-isSudoku :: Sudoku -> Bool
-isSudoku (Sudoku rs) = rowLen == 9 && colLen == 9
-  where rowLen = length rs
-        colLen = length . transpose $ rs
-
-
--- Check whether a Suoku is solved or not
-isSolved :: Sudoku -> Bool
-isSolved (Sudoku rs) = and rowsSolved
-  where rowsSolved = map (not . elem Nothing) rs
-
-
 -- Prints a Sudoku to the shell
 printSudoku :: Sudoku -> IO ()
 printSudoku (Sudoku rs) = putStrLn . gridString $ rs
@@ -66,6 +55,19 @@ readSudoku path = fmap (Sudoku . grid . lines) $ readFile path
         cells c | c == '.'             = Nothing
                 | c `elem` "123456789" = Just $ digitToInt c
                 | otherwise            = error "This is not a Sudoku."
+
+
+-- Check to see if a grid of numbers is actually a Sudoku
+isSudoku :: Sudoku -> Bool
+isSudoku (Sudoku rs) = rowLen == 9 && colLen == 9
+  where rowLen = length rs
+        colLen = length . transpose $ rs
+
+
+-- Check whether a Suoku is solved or not
+isSolved :: Sudoku -> Bool
+isSolved (Sudoku rs) = and rowsSolved
+  where rowsSolved = map (not . elem Nothing) rs
 
 
 -- Take a Sudoku and make a list of all its Blocks
@@ -98,6 +100,19 @@ isOkay :: Sudoku -> Bool
 isOkay = and . map isOkayBlock . blocks
 
 
+-- Finds the Pos of the first blank in the Sudoku
+blank :: Sudoku -> Pos
+blank (Sudoku rs) = snd . head . filter ((== Nothing) . fst) $ indexedCells
+  where indexedCells = concat [ [ (rs !! y !! x, (x,y)) | x <- [0..8] ] | y <- [0..8] ]
+
+-- Replace the nth value in a list with another value
+(!!=) :: [a] -> (Int, a) -> [a]
+(!!=) xs (n, v) = take n xs ++ [v] ++ drop (n + 1) xs
+
+
+{-
+Testing!
+-}
 -- A QuickCheck generator for an arbitrary cell in a Sudoku
 cell :: Gen (Maybe Int)
 cell = frequency [(9, return Nothing),
@@ -107,9 +122,9 @@ cell = frequency [(9, return Nothing),
 
 -- An instance of Arbitrary so QuickCheck can generate random Sudokus
 instance Arbitrary Sudoku where
-  arbitrary =
-    do rows <- sequence [ sequence [ cell | y <- [1..9] ] | x <- [1..9] ]
-       return $ Sudoku rows
+  arbitrary = do
+    rows <- sequence [ sequence [ cell | y <- [1..9] ] | x <- [1..9] ]
+    return $ Sudoku rows
 
 
 -- A QuickCheck property to verify a Sudoku is actually a Sudoku
