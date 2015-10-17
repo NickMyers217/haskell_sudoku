@@ -3,6 +3,7 @@ module Sudoku where
 
 import Data.List (transpose, intercalate, nub)
 import Data.Char (intToDigit, digitToInt)
+import Data.Maybe (fromJust)
 import Test.QuickCheck
 
 
@@ -12,20 +13,6 @@ data Sudoku = Sudoku [[Maybe Int]] deriving (Show, Eq)
 type Block = [Maybe Int]
 -- An x y coordinate
 type Pos = (Int, Int)
-
-
--- An unsolved example Sudoku
-example :: Sudoku
-example = Sudoku
-          [ [Just 3, Just 6, Nothing, Nothing, Just 7, Just 1, Just 2, Nothing, Nothing]
-          , [Nothing, Just 5, Nothing, Nothing, Nothing, Nothing, Just 1, Just 8, Nothing]
-          , [Nothing, Nothing, Just 9, Just 2, Nothing, Just 4, Just 7, Nothing, Nothing]
-          , [Nothing, Nothing, Nothing, Nothing, Just 1, Just 3, Nothing, Just 2, Just 8]
-          , [Just 4, Nothing, Nothing, Just 5, Nothing, Just 2, Nothing, Nothing, Just 9]
-          , [Just 2, Just 7, Nothing, Just 4, Just 6, Nothing, Nothing, Nothing, Nothing]
-          , [Nothing, Nothing, Just 5, Just 3, Nothing, Just 8, Just 9, Nothing, Nothing]
-          , [Nothing, Just 8, Just 3, Nothing, Nothing, Nothing, Nothing, Just 6, Nothing]
-          , [Nothing, Nothing, Just 7, Just 6, Just 9, Nothing, Nothing, Just 4, Just 3]]
 
 
 -- Creates a blank Sudoku
@@ -66,8 +53,7 @@ isSudoku (Sudoku rs) = rowLen == 9 && colLen == 9
 
 -- Check whether a Suoku is solved or not
 isSolved :: Sudoku -> Bool
-isSolved (Sudoku rs) = and rowsSolved
-  where rowsSolved = map (not . elem Nothing) rs
+isSolved (Sudoku rs) = and . map (not . elem Nothing) $ rs
 
 
 -- Take a Sudoku and make a list of all its Blocks
@@ -89,7 +75,7 @@ blocks (Sudoku rows) = rows ++ transpose rows ++ map (\f -> f rows) blockFuncs
                      , concatMap botOrRight . botOrRight]
 
 
--- Make sure a block is valid
+-- Make sure a block does not contain the same digit twice, excluding Nothing
 isOkayBlock :: Block -> Bool
 isOkayBlock xs = (length nums) == (length $ nub nums)
   where nums = filter (/= Nothing) xs
@@ -102,16 +88,40 @@ isOkay = and . map isOkayBlock . blocks
 
 -- Finds the Pos of the first blank in the Sudoku
 blank :: Sudoku -> Pos
-blank (Sudoku rs) = snd . head . filter ((== Nothing) . fst) $ indexedCells
-  where indexedCells = concat [ [ (rs !! y !! x, (x,y)) | x <- [0..8] ] | y <- [0..8] ]
+blank (Sudoku rs)  = snd . head $ blankCells
+  where coords     = concat [ [ (x,y) | x <- [0..8] ] | y <- [0..8] ]
+        cells      = concat rs
+        blankCells = filter ((== Nothing) . fst) (zip cells coords)
 
 -- Replace the nth value in a list with another value
 (!!=) :: [a] -> (Int, a) -> [a]
 (!!=) xs (n, v) = take n xs ++ [v] ++ drop (n + 1) xs
 
 -- Update a Sudoku with a new value at a give Pos
---update :: Sudoku -> Pos -> Maybe Int -> Sudoku
-update (Sudoku rs) (x,y) v = rs !!= (y, rs !! y !!= (x, v))
+update :: Sudoku -> Pos -> Maybe Int -> Sudoku
+update (Sudoku rs) (x,y) v = Sudoku $ rs !!= (y, rs !! y !!= (x, v))
+
+-- Use a backtracing algorithm to recursively traverse all the possible combinations
+-- If a solution is found return Just the solution, if one is not found return Nothing
+solve :: Sudoku -> Maybe Sudoku
+solve s | not . isOkay $ s = Nothing
+        | isSolved s       = Just s
+        | otherwise        = pickASolution possibleSolutions
+  where nineUpdatedSuds    = map (update s (blank s)) (map Just [1..9])
+        possibleSolutions  = map solve nineUpdatedSuds
+
+pickASolution :: [Maybe Sudoku] -> Maybe Sudoku
+pickASolution suds    = if null solutions then Nothing else head solutions
+  where test Nothing  = Nothing
+        test (Just s) = if isSolved s && isOkay s then Just s else Nothing
+        solutions     = filter (/= Nothing) (map test suds)
+
+
+-- Read a sudoku from a file, solve it, then print it out
+readAndSolve :: FilePath -> IO ()
+readAndSolve path = do
+  sud <- readSudoku path
+  printSudoku . fromJust . solve $ sud
 
 
 {-
