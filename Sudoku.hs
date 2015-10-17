@@ -109,6 +109,10 @@ blank (Sudoku rs) = snd . head . filter ((== Nothing) . fst) $ indexedCells
 (!!=) :: [a] -> (Int, a) -> [a]
 (!!=) xs (n, v) = take n xs ++ [v] ++ drop (n + 1) xs
 
+-- Update a Sudoku with a new value at a give Pos
+--update :: Sudoku -> Pos -> Maybe Int -> Sudoku
+update (Sudoku rs) (x,y) v = rs !!= (y, rs !! y !!= (x, v))
+
 
 {-
 Testing!
@@ -137,3 +141,9 @@ prop_Sudoku_Blocks :: Sudoku -> Bool
 prop_Sudoku_Blocks s = (length blockRes == 27) && (nub blockLens == [9])
   where blockRes  = blocks s
         blockLens = map length blockRes
+
+
+-- A QuickCheck property to make sure the first blank cell in the Sudoku is actually blank
+prop_Sudoku_Blank :: Sudoku -> Bool
+prop_Sudoku_Blank s@(Sudoku rs) = rs !! snd c !! fst c == Nothing
+  where c = blank s
