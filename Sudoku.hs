@@ -15,6 +15,21 @@ type Block = [Maybe Int]
 type Pos = (Int, Int)
 
 
+-- An example Sudoku
+example :: Sudoku
+example =
+  Sudoku
+    [ [Just 3, Just 6, Nothing,Nothing,Just 7, Just 1, Just 2, Nothing,Nothing]
+    , [Nothing,Just 5, Nothing,Nothing,Nothing,Nothing,Just 1, Just 8, Nothing]
+    , [Nothing,Nothing,Just 9, Just 2, Nothing,Just 4, Just 7, Nothing,Nothing]
+    , [Nothing,Nothing,Nothing,Nothing,Just 1, Just 3, Nothing,Just 2, Just 8]
+    , [Just 4, Nothing,Nothing,Just 5, Nothing,Just 2, Nothing,Nothing,Just 9]
+    , [Just 2, Just 7, Nothing,Just 4, Just 6, Nothing,Nothing,Nothing,Nothing]
+    , [Nothing,Nothing,Just 5, Just 3, Nothing,Just 8, Just 9, Nothing,Nothing]
+    , [Nothing,Just 8, Just 3, Nothing,Nothing,Nothing,Nothing,Just 6, Nothing]
+    , [Nothing,Nothing,Just 7, Just 6, Just 9, Nothing,Nothing,Just 4, Just 3]]
+
+
 -- Creates a blank Sudoku
 allBlankSudoku :: Sudoku
 allBlankSudoku = Sudoku [ [ Nothing | y <- [1..9] ] | x <- [1..9] ]
@@ -124,6 +139,15 @@ readAndSolve path = do
   printSudoku . fromJust . solve $ sud
 
 
+-- Tests to see if a child Sudoku is a valid solution of a parent Sudoku
+isSolutionOf :: Sudoku -> Sudoku -> Bool
+isSolutionOf sC@(Sudoku rsC) (Sudoku rsP) = isExtension && isSolved sC && isOkay sC
+  where indexes         = concat [ [ (x,y) | x <- [0..8] ] | y <- [0..8] ]
+        parentIndexed   = zip (concat rsP) indexes
+        parentNonBlanks = filter ((/= Nothing) . fst) parentIndexed
+        isExtension     = and . map (\(v, (x,y)) -> rsC !! y !! x == v) $ parentNonBlanks
+
+
 {-
 Testing!
 -}
@@ -143,7 +167,7 @@ instance Arbitrary Sudoku where
 
 -- A QuickCheck property to verify a Sudoku is actually a Sudoku
 prop_Sudoku :: Sudoku -> Bool
-prop_Sudoku s = isSudoku s
+prop_Sudoku = isSudoku
 
 
 -- A QuickCheck property to verify a Sudoku has 27 blocks, each with 9 cells
